@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "variante.h"
 #include "readcmd.h"
@@ -36,7 +37,7 @@ int question6_executer(char *line)
 
 	/* Remove this line when using parsecmd as it will free it */
 	free(line);
-	
+
 	return 0;
 }
 
@@ -58,6 +59,15 @@ void terminate(char *line) {
 	exit(0);
 }
 
+void execute(char** cmd) {
+	int pid;
+	int    status;
+
+	if ((pid = fork()) == 0) {
+		execvp(cmd[0], cmd);
+	}
+	while (wait(&status) != pid);
+}
 
 int main() {
         printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
@@ -78,6 +88,7 @@ int main() {
 		   can not be cleaned at the end of the program. Thus
 		   one memory leak per command seems unavoidable yet */
 		line = readline(prompt);
+
 		if (line == 0 || ! strncmp(line,"exit", 4)) {
 			terminate(line);
 		}
@@ -103,12 +114,9 @@ int main() {
 
 		/* If input stream closed, normal termination */
 		if (!l) {
-		  
 			terminate(0);
 		}
-		
 
-		
 		if (l->err) {
 			/* Syntax error, read another command */
 			printf("error: %s\n", l->err);
@@ -123,11 +131,12 @@ int main() {
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
 			printf("seq[%d]: ", i);
-                        for (j=0; cmd[j]!=0; j++) {
-                                printf("'%s' ", cmd[j]);
-                        }
+                for (j=0; cmd[j]!=0; j++) {
+                        printf("'%s' ", cmd[j]);
+                }
 			printf("\n");
+
+			execute(cmd);
 		}
 	}
-
 }
