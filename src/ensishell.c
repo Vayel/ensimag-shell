@@ -61,7 +61,7 @@ void terminate(char *line) {
 
 void execute(char** cmd) {
 	int pid;
-	int    status;
+	int status;
 
 	if ((pid = fork()) == 0) {
 		execvp(cmd[0], cmd);
