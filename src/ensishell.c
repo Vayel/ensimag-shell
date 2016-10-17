@@ -59,14 +59,27 @@ void terminate(char *line) {
 	exit(0);
 }
 
-void execute(char** cmd) {
+void execute(char** cmd, int bg) {
 	int pid;
 	int status;
 
-	if ((pid = fork()) == 0) {
+	/* The function fork() return an integer which can be either '-1' or '0' for the a child process */
+	pid = fork();
+
+	// [CHILD PROCESS] pid < 0
+	if (pid < 0) {
+		printf("[ERROR] Process failed !\n");
+	}
+	// [CHILD PROCESS] pid == 0
+	else if (pid == 0) {
 		execvp(cmd[0], cmd);
 	}
-	while (wait(&status) != pid);
+	// [PARENT PROCESS] pid = the process ID of the child process
+	else {
+		if (bg == 0) {
+			while (wait(&status) != pid);
+		}
+	}
 }
 
 int main() {
@@ -136,7 +149,7 @@ int main() {
                 }
 			printf("\n");
 
-			execute(cmd);
+			execute(cmd, l->bg);
 		}
 	}
 }

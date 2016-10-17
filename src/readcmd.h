@@ -18,7 +18,7 @@
 #include "variante.h"
 
 /* Read a command line from input stream. Return null when input closed.
-Display an error and call exit() in case of memory exhaustion. 
+Display an error and call exit() in case of memory exhaustion.
 It frees also line and set it at NULL */
 struct cmdline *parsecmd(char **line);
 
@@ -35,11 +35,11 @@ char *readline(char *prompt);
 
 /* Structure returned by parsecmd() */
 struct cmdline {
-	char *err;	/* If not null, it is an error message that should be
-			   displayed. The other fields are null. */
-	char *in;	/* If not null : name of file for input redirection. */
-	char *out;	/* If not null : name of file for output redirection. */
-        int   bg;       /* If set the command must run in background */ 
+	char *err;		/* If not null, it is an error message that should be
+			   		displayed. The other fields are null. */
+	char *in;		/* If not null : name of file for input redirection. */
+	char *out;		/* If not null : name of file for output redirection. */
+    int   bg;       /* If set the command must run in background */
 	char ***seq;	/* See comment below */
 };
 
