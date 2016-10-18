@@ -7,8 +7,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include "variante.h"
 #include "readcmd.h"
@@ -62,19 +64,19 @@ void terminate(char *line) {
 // Global variables
 struct jobs_list {
 	int pid;
-	char* cmd;
-	struct jobs_list* next;
+	char *cmd;
+	struct jobs_list *next;
 };
-struct jobs_list* list = NULL;
+struct jobs_list *list = NULL;
 
-struct jobs_list* get_next() {
+struct jobs_list *get_next() {
 	if (list == NULL) {
 		list = malloc(sizeof(struct jobs_list));
 		list->next = NULL;
 		return list;
 	}
 
-	struct jobs_list* current = list;
+	struct jobs_list *current = list;
 
 	while(current->next != NULL) {
 		current = current->next;
@@ -86,11 +88,13 @@ struct jobs_list* get_next() {
 	return current->next;
 }
 
-void execute(char** cmd, int bg) {
+void execute(char **cmd, int bg) {
 	int pid;
 	int status;
 
-	/* The function fork() return an integer which can be either '-1' or '0' for the a child process */
+	/* The function fork() return an integer which can be either '-1' or '0'
+     * for the a child process 
+     */
 	pid = fork();
 
 	// [CHILD PROCESS] pid < 0
@@ -107,7 +111,7 @@ void execute(char** cmd, int bg) {
 			while (wait(&status) != pid);
 		}
 		else{
-			struct jobs_list* end = get_next();
+			struct jobs_list *end = get_next();
 			end->pid = pid;
 			end->cmd = "TODO CMD";
 		}
@@ -115,10 +119,14 @@ void execute(char** cmd, int bg) {
 }
 
 void jobs() {
-	struct jobs_list* current = list;
+	struct jobs_list *current = list;
 
 	while(current != NULL) {
-		printf("%d : %s\n", current->pid, current->cmd);
+        int status;
+        /* If the process is running, waitpid returns 0, else the pid */
+        bool finished = (bool) waitpid(current->pid, &status, WNOHANG);
+
+		printf("%d : %s [%s]\n", current->pid, current->cmd, finished ? "FINISHED" : "RUNNING");
 		current = current->next;
 	}
 }
