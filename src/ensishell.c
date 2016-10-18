@@ -134,10 +134,12 @@ void jobs() {
 
 	while(current != NULL) {
         int status;
-        /* If the process is running, waitpid returns 0, else the pid */
-        bool finished = (bool) waitpid(current->pid, &status, WNOHANG);
 
-		printf("%d : %s [%s]\n", current->pid, current->cmd, finished ? "FINISHED" : "RUNNING");
+        /* If the process is running, waitpid returns 0, else the pid */
+        if(!(bool) waitpid(current->pid, &status, WNOHANG)) {
+		    printf("%d : %s\n", current->pid, current->cmd);
+        }
+
 		current = current->next;
 	}
 }
