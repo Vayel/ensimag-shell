@@ -59,6 +59,33 @@ void terminate(char *line) {
 	exit(0);
 }
 
+// Global variables
+struct jobs_list {
+	int pid;
+	char* cmd;
+	struct jobs_list* next;
+};
+struct jobs_list* list = NULL;
+
+struct jobs_list* get_next() {
+	if (list == NULL) {
+		list = malloc(sizeof(struct jobs_list));
+		list->next = NULL;
+		return list;
+	}
+
+	struct jobs_list* current = list;
+
+	while(current->next != NULL) {
+		current = current->next;
+	}
+
+	current->next = malloc(sizeof(struct jobs_list));
+	current->next->next = NULL;
+
+	return current->next;
+}
+
 void execute(char** cmd, int bg) {
 	int pid;
 	int status;
@@ -79,6 +106,20 @@ void execute(char** cmd, int bg) {
 		if (bg == 0) {
 			while (wait(&status) != pid);
 		}
+		else{
+			struct jobs_list* end = get_next();
+			end->pid = pid;
+			end->cmd = "TODO CMD";
+		}
+	}
+}
+
+void jobs() {
+	struct jobs_list* current = list;
+
+	while(current != NULL) {
+		printf("%d : %s\n", current->pid, current->cmd);
+		current = current->next;
 	}
 }
 
@@ -149,7 +190,12 @@ int main() {
                 }
 			printf("\n");
 
-			execute(cmd, l->bg);
+			if (strcmp(cmd[0],"jobs") == 0) {
+				jobs();
+			}
+			else {
+				execute(cmd, l->bg);
+			}
 		}
 	}
 }
