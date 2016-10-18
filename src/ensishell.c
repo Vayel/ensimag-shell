@@ -113,7 +113,8 @@ void execute(char **cmd, int bg) {
 		else{
 			struct jobs_list *end = get_next();
 			end->pid = pid;
-			end->cmd = "TODO CMD";
+			end->cmd = malloc(strlen(cmd[0]) * sizeof(char));
+            strcpy(end->cmd, cmd[0]);
 		}
 	}
 }
