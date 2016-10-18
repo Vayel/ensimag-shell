@@ -69,6 +69,8 @@ struct jobs_list {
 };
 struct jobs_list *list = NULL;
 
+int fd[2];
+
 struct jobs_list *get_next() {
 	if (list == NULL) {
 		list = malloc(sizeof(struct jobs_list));
@@ -88,35 +90,43 @@ struct jobs_list *get_next() {
 	return current->next;
 }
 
-void execute(char **cmd, int bg) {
-	int pid;
-	int status;
-
-	/* The function fork() return an integer which can be either '-1' or '0'
+void execute(char **cmd, int bg, bool in_pipe, bool out_pipe) {
+	/* The fork() function returns an integer which can be either '-1' or '0'
      * for the a child process 
      */
-	pid = fork();
+	int pid = fork();
 
 	// [CHILD PROCESS] pid < 0
 	if (pid < 0) {
 		printf("[ERROR] Process failed !\n");
+        return;
 	}
 	// [CHILD PROCESS] pid == 0
 	else if (pid == 0) {
+        if(in_pipe) {
+            dup2(fd[0], STDIN_FILENO);
+        } 
+        if (out_pipe) {
+            dup2(fd[1], STDOUT_FILENO);
+        }
+
 		execvp(cmd[0], cmd);
+        return;
 	}
-	// [PARENT PROCESS] pid = the process ID of the child process
-	else {
-		if (bg == 0) {
-			while (wait(&status) != pid);
-		}
-		else{
-			struct jobs_list *end = get_next();
-			end->pid = pid;
-			end->cmd = malloc(strlen(cmd[0]) * sizeof(char));
-            strcpy(end->cmd, cmd[0]);
-		}
-	}
+
+	// [PARENT PROCESS] pid = child pid
+    close(fd[1]);
+
+    if (bg == 0) {
+	    int status;
+        while (wait(&status) != pid);
+    }
+    else {
+        struct jobs_list *end = get_next();
+        end->pid = pid;
+        end->cmd = malloc(strlen(cmd[0]) * sizeof(char));
+        strcpy(end->cmd, cmd[0]);
+    }
 }
 
 void jobs() {
@@ -190,7 +200,9 @@ int main() {
 		if (l->out) printf("out: %s\n", l->out);
 		if (l->bg) printf("background (&)\n");
 
-		/* Display each command of the pipe */
+        pipe(fd);
+		
+        /* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
 			printf("seq[%d]: ", i);
@@ -199,11 +211,15 @@ int main() {
                 }
 			printf("\n");
 
-			if (strcmp(cmd[0],"jobs") == 0) {
+			if (strcmp(cmd[0], "jobs") == 0) {
 				jobs();
-			}
-			else {
-				execute(cmd, l->bg);
+			} else {
+				execute(
+                    cmd,
+                    l->bg,
+                    i > 0,
+                    l->seq[i+1] != 0
+                );
 			}
 		}
 	}
