@@ -5,9 +5,10 @@
  * Ce code est distribué sous la licence GPLv3+.     *
  *****************************************************/
 
+#include "ensishell.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -19,20 +20,10 @@
 #ifndef VARIANTE
 #error "Variante non défini !!"
 #endif
-//
-// Global variables
-struct jobs_list {
-	int pid;
-	char *cmd;
-	struct jobs_list *next;
-};
-struct jobs_list *list = NULL;
 
+// Global variables
+struct jobs_list *list = NULL;
 int fd[2];
-struct jobs_list *get_next(void);
-void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
-			 char* input_file, char* output_file);
-void jobs();
 
 /* Guile (1.8 and 2.0) is auto-detected by cmake */
 /* To disable Scheme interpreter (Guile support), comment the
@@ -45,6 +36,11 @@ void jobs();
 
 int question6_executer(char *line)
 {
+	/* Question 6: Insert your code to execute the command line
+     * identically to the standard execution scheme:
+     * parsecmd, then fork+execvp, for a single command.
+     * pipe and i/o redirection are not required.
+     */
     struct cmdline *l;
     l = parsecmd(&line);
 
