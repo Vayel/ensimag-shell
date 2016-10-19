@@ -58,7 +58,9 @@ int question6_executer(char *line)
                 cmd,
                 l->bg,
                 i > 0,
-                l->seq[i+1] != 0
+                l->seq[i+1] != 0,
+                l->in,
+                l->out
             );
         }
     }
