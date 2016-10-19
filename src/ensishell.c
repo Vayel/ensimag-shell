@@ -18,6 +18,19 @@
 #ifndef VARIANTE
 #error "Variante non défini !!"
 #endif
+//
+// Global variables
+struct jobs_list {
+	int pid;
+	char *cmd;
+	struct jobs_list *next;
+};
+struct jobs_list *list = NULL;
+
+int fd[2];
+struct jobs_list *get_next(void);
+void execute(char **cmd, int bg, bool in_pipe, bool out_pipe);
+void jobs();
 
 /* Guile (1.8 and 2.0) is auto-detected by cmake */
 /* To disable Scheme interpreter (Guile support), comment the
@@ -30,12 +43,23 @@
 
 int question6_executer(char *line)
 {
-	/* Question 6: Insert your code to execute the command line
-	 * identically to the standard execution scheme:
-	 * parsecmd, then fork+execvp, for a single command.
-	 * pipe and i/o redirection are not required.
-	 */
-	printf("Not implemented yet: can not execute %s\n", line);
+    struct cmdline *l;
+    l = parsecmd(&line);
+
+    for (int i=0; l->seq[i]!=0; i++) {
+        char **cmd = l->seq[i];
+
+        if (strcmp(cmd[0], "jobs") == 0) {
+            jobs();
+        } else {
+            execute(
+                cmd,
+                l->bg,
+                i > 0,
+                l->seq[i+1] != 0
+            );
+        }
+    }
 
 	/* Remove this line when using parsecmd as it will free it */
 	free(line);
@@ -60,16 +84,6 @@ void terminate(char *line) {
 	printf("exit\n");
 	exit(0);
 }
-
-// Global variables
-struct jobs_list {
-	int pid;
-	char *cmd;
-	struct jobs_list *next;
-};
-struct jobs_list *list = NULL;
-
-int fd[2];
 
 struct jobs_list *get_next() {
 	if (list == NULL) {
@@ -156,7 +170,7 @@ int main() {
 	while (1) {
 		struct cmdline *l;
 		char *line=0;
-		int i, j;
+		int i; //, j;
 		char *prompt = "ensishell>";
 
 		/* Readline use some internal memory structure that
@@ -198,20 +212,11 @@ int main() {
 			continue;
 		}
 
-		if (l->in) printf("in: %s\n", l->in);
-		if (l->out) printf("out: %s\n", l->out);
-		if (l->bg) printf("background (&)\n");
-
         pipe(fd);
 		
         /* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
-			printf("seq[%d]: ", i);
-                for (j=0; cmd[j]!=0; j++) {
-                        printf("'%s' ", cmd[j]);
-                }
-			printf("\n");
 
 			if (strcmp(cmd[0], "jobs") == 0) {
 				jobs();
