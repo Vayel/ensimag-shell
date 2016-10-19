@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "variante.h"
 #include "readcmd.h"
@@ -90,25 +91,41 @@ struct jobs_list *get_next() {
 	return current->next;
 }
 
-void execute(char **cmd, int bg, bool in_pipe, bool out_pipe) {
+void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
+			 char* input_file, char* output_file) {
 	/* The fork() function returns an integer which can be either '-1' or '0'
-     * for the a child process 
+     * for the a child process
      */
 	int pid = fork();
+	int fd_file;
 
 	// [CHILD PROCESS] pid < 0
 	if (pid < 0) {
 		printf("[ERROR] Process failed !\n");
-        return;
+		return;
 	}
 	// [CHILD PROCESS] pid == 0
 	else if (pid == 0) {
         if(in_pipe) {
             dup2(fd[0], STDIN_FILENO);
-        } 
+        }
         if (out_pipe) {
             dup2(fd[1], STDOUT_FILENO);
         }
+
+		// Execute command with '<' and/or '>'
+		if (input_file != NULL) {
+			if ((fd_file = open(input_file, O_RDONLY)) < 0) {
+				printf("[ERROR] Open input file: %s\n", input_file);
+			}
+			dup2(fd_file, STDIN_FILENO);
+		}
+		if (output_file != NULL) {
+			if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
+				printf("[ERROR] Open output file: %s\n", output_file);
+			}
+			dup2(fd_file, STDOUT_FILENO);
+		}
 
 		execvp(cmd[0], cmd);
         return;
@@ -156,7 +173,7 @@ int main() {
 	while (1) {
 		struct cmdline *l;
 		char *line=0;
-		int i, j;
+		int i;//, j;
 		char *prompt = "ensishell>";
 
 		/* Readline use some internal memory structure that
@@ -198,20 +215,20 @@ int main() {
 			continue;
 		}
 
-		if (l->in) printf("in: %s\n", l->in);
-		if (l->out) printf("out: %s\n", l->out);
-		if (l->bg) printf("background (&)\n");
+		// if (l->in) printf("in: %s\n", l->in);
+		// if (l->out) printf("out: %s\n", l->out);
+		// if (l->bg) printf("background (&)\n");
 
         pipe(fd);
-		
+
         /* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
-			printf("seq[%d]: ", i);
-                for (j=0; cmd[j]!=0; j++) {
-                        printf("'%s' ", cmd[j]);
-                }
-			printf("\n");
+			// printf("seq[%d]: ", i);
+            //     for (j=0; cmd[j]!=0; j++) {
+            //             printf("'%s' ", cmd[j]);
+            //     }
+			// printf("\n");
 
 			if (strcmp(cmd[0], "jobs") == 0) {
 				jobs();
@@ -220,7 +237,9 @@ int main() {
                     cmd,
                     l->bg,
                     i > 0,
-                    l->seq[i+1] != 0
+                    l->seq[i+1] != 0,
+					l->in,
+					l->out
                 );
 			}
 		}
