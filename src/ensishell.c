@@ -25,6 +25,7 @@
 // Global variables
 struct jobs_list *list = NULL;
 int fd[2];
+struct rlimit* limit_time_process;
 
 /* Guile (1.8 and 2.0) is auto-detected by cmake */
 /* To disable Scheme interpreter (Guile support), comment the
@@ -134,6 +135,11 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
 	}
 	// [CHILD PROCESS] pid == 0
 	else if (pid == 0) {
+
+		// 7.6 Limitation du temps de calcul
+		setrlimit(RLIMIT_CPU, limit_time_process);
+		getrlimit(RLIMIT_CPU, limit_time_process);
+
 		// Pipe management
         if(in_pipe) {
             dup2(fd[0], STDIN_FILENO);
@@ -177,6 +183,7 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
     }
 }
 
+// 7.3 Temps de calcul d'un processus (signal handler)
 void handler(int sig, siginfo_t *info, void *context) {
 	struct timeval end;
 	int sec = getSec(info->si_pid);
@@ -211,10 +218,21 @@ int main() {
         scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
 #endif
 
+	// 7.3 Temps de calcul d'un processus
+	struct sigaction sa;
+	sa.sa_sigaction = handler;
+	sa.sa_flags = SA_SIGINFO | SA_NOCLDSTOP | SA_RESTART;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGCHLD, &sa, NULL);
+
+	// 7.6 Limitation du temps de calcul (Initialisation)
+	limit_time_process = malloc(sizeof(struct rlimit));
+	getrlimit(RLIMIT_CPU, limit_time_process);
+
 	while (1) {
 		struct cmdline *l;
 		char *line=0;
-		int i; //, j;
+		int i;//, j;
 		char *prompt = "ensishell>";
 
 		/* Readline use some internal memory structure that
@@ -263,13 +281,6 @@ int main() {
 		// Pipe management
         pipe(fd);
 
-		// 7.3 Terminaison asynchrone
-		struct sigaction sa;
-		sa.sa_sigaction = handler;
-		sa.sa_flags = SA_SIGINFO | SA_NOCLDSTOP | SA_RESTART;
-		sigemptyset(&sa.sa_mask);
-		sigaction(SIGCHLD, &sa, NULL);
-
         /* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
 			char **cmd = l->seq[i];
@@ -282,6 +293,15 @@ int main() {
 
 			if (strcmp(cmd[0], "jobs") == 0) {
 				jobs();
+			}
+			else if (strcmp(cmd[0], "ulimit") == 0) {
+				if (cmd[1] != 0) {
+					limit_time_process->rlim_cur = atoi(cmd[1]);
+					limit_time_process->rlim_max = limit_time_process->rlim_cur + 5;
+				}
+				else {
+					printf("[ERROR] Please enter a number after 'ulimit' (Example: ulimit 10)\n");
+				}
 			} else {
 				execute(
                     cmd,
