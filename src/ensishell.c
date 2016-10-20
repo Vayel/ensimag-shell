@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <fcntl.h>
 
 #include "variante.h"
@@ -104,6 +105,19 @@ struct jobs_list *get_next() {
 	return current->next;
 }
 
+int getSec(int pid) {
+	struct jobs_list* current = list;
+
+	while (current != NULL) {
+		if (current->pid == pid) {
+			return current->sec;
+		}
+		current = current->next;
+	}
+
+	return -1;
+}
+
 void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
 			 char* input_file, char* output_file) {
 	/* The fork() function returns an integer which can be either '-1' or '0'
@@ -111,6 +125,7 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
      */
 	int pid = fork();
 	int fd_file;
+	struct timeval begin;
 
 	// [CHILD PROCESS] pid < 0
 	if (pid < 0) {
@@ -119,6 +134,7 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
 	}
 	// [CHILD PROCESS] pid == 0
 	else if (pid == 0) {
+		// Pipe management
         if(in_pipe) {
             dup2(fd[0], STDIN_FILENO);
         }
@@ -155,8 +171,20 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
         struct jobs_list *end = get_next();
         end->pid = pid;
         end->cmd = malloc(strlen(cmd[0]) * sizeof(char));
+		gettimeofday(&begin, NULL);
+		end->sec = begin.tv_sec;
         strcpy(end->cmd, cmd[0]);
     }
+}
+
+void handler(int sig, siginfo_t *info, void *context) {
+	struct timeval end;
+	int sec = getSec(info->si_pid);
+
+	if (sec != -1) {
+		gettimeofday(&end, NULL);
+		printf("Execution time [%d]: %ld seconds\n", info->si_pid, end.tv_sec - sec);
+	}
 }
 
 void jobs() {
@@ -232,7 +260,15 @@ int main() {
 		// if (l->out) printf("out: %s\n", l->out);
 		// if (l->bg) printf("background (&)\n");
 
+		// Pipe management
         pipe(fd);
+
+		// 7.3 Terminaison asynchrone
+		struct sigaction sa;
+		sa.sa_sigaction = handler;
+		sa.sa_flags = SA_SIGINFO | SA_NOCLDSTOP | SA_RESTART;
+		sigemptyset(&sa.sa_mask);
+		sigaction(SIGCHLD, &sa, NULL);
 
         /* Display each command of the pipe */
 		for (i=0; l->seq[i]!=0; i++) {
