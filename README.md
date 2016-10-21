@@ -1,5 +1,17 @@
 ensimag-shell
 =============
+Etudiants: Alexandre MOUCHET & Vincent LEFOULON
+Choix de la variante: 7
+
+Remarques
+----------
+
+Lorsque l'on exécute une commande GUILE (exemple: (executer "ls")) dès le début
+du prompt (sans qu'il y ait eu une commande avant), la commande GUILE
+est executée correctement mais la commande 'exit' est exécutée juste derrière
+ce qui à pour conséquence la fermeture du prompt.
+
+=============
 
 Squelette pour le TP shell
 
@@ -24,8 +36,6 @@ cd build
 cmake ..
 make
 make test
-
-
 
 Autres
 ------
