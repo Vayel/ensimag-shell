@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <fcntl.h>
 
 #include "variante.h"
@@ -38,7 +39,7 @@ struct rlimit* limit_time_process;
 
 int question6_executer(char *line)
 {
-	/* Question 6: Insert your code to execute the command line
+    /* Question 6: Insert your code to execute the command line
      * identically to the standard execution scheme:
      * parsecmd, then fork+execvp, for a single command.
      * pipe and i/o redirection are not required.
@@ -63,10 +64,7 @@ int question6_executer(char *line)
         }
     }
 
-	/* Remove this line when using parsecmd as it will free it */
-	free(line);
-
-	return 0;
+    return 0;
 }
 
 SCM executer_wrapper(SCM x)
@@ -78,69 +76,69 @@ SCM executer_wrapper(SCM x)
 
 void terminate(char *line) {
 #if USE_GNU_READLINE == 1
-	/* rl_clear_history() does not exist yet in centOS 6 */
-	clear_history();
+    /* rl_clear_history() does not exist yet in centOS 6 */
+    clear_history();
 #endif
-	if (line)
-	  free(line);
-	printf("exit\n");
-	exit(0);
+    if (line)
+      free(line);
+    printf("exit\n");
+    exit(0);
 }
 
 struct jobs_list *get_next() {
-	if (list == NULL) {
-		list = malloc(sizeof(struct jobs_list));
-		list->next = NULL;
-		return list;
-	}
+    if (list == NULL) {
+        list = malloc(sizeof(struct jobs_list));
+        list->next = NULL;
+        return list;
+    }
 
-	struct jobs_list *current = list;
+    struct jobs_list *current = list;
 
-	while(current->next != NULL) {
-		current = current->next;
-	}
+    while(current->next != NULL) {
+        current = current->next;
+    }
 
-	current->next = malloc(sizeof(struct jobs_list));
-	current->next->next = NULL;
+    current->next = malloc(sizeof(struct jobs_list));
+    current->next->next = NULL;
 
-	return current->next;
+    return current->next;
 }
 
 int getSec(int pid) {
-	struct jobs_list* current = list;
+    struct jobs_list* current = list;
 
-	while (current != NULL) {
-		if (current->pid == pid) {
-			return current->sec;
-		}
-		current = current->next;
-	}
+    while (current != NULL) {
+        if (current->pid == pid) {
+            return current->sec;
+        }
+        current = current->next;
+    }
 
-	return -1;
+    return -1;
 }
 
 void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
-			 char* input_file, char* output_file) {
-	/* The fork() function returns an integer which can be either '-1' or '0'
+             char* input_file, char* output_file) {
+    /* The fork() function returns an integer which can be either '-1' or '0'
      * for the a child process
      */
-	int pid = fork();
-	int fd_file;
-	struct timeval begin;
+    int pid = fork();
+    int fd_file;
+    struct timeval begin;
 
-	// [CHILD PROCESS] pid < 0
-	if (pid < 0) {
-		printf("[ERROR] Process failed !\n");
-		return;
-	}
-	// [CHILD PROCESS] pid == 0
-	else if (pid == 0) {
+    // [CHILD PROCESS] pid < 0
+    if (pid < 0) {
+        printf("[ERROR] Process failed !\n");
+        return;
+    }
+    // [CHILD PROCESS] pid == 0
+    else if (pid == 0) {
 
-		// 7.6 Limitation du temps de calcul
-		setrlimit(RLIMIT_CPU, limit_time_process);
-		getrlimit(RLIMIT_CPU, limit_time_process);
+        // 7.6 Limitation du temps de calcul
+        setrlimit(RLIMIT_CPU, limit_time_process);
+        getrlimit(RLIMIT_CPU, limit_time_process);
 
-		// Pipe management
+        // Pipe management
         if(in_pipe) {
             dup2(fd[0], STDIN_FILENO);
         }
@@ -148,65 +146,65 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
             dup2(fd[1], STDOUT_FILENO);
         }
 
-		// Execute command with '<' and/or '>'
-		if (input_file != NULL) {
-			if ((fd_file = open(input_file, O_RDONLY)) < 0) {
-				printf("[ERROR] Open input file: %s\n", input_file);
-			}
-			dup2(fd_file, STDIN_FILENO);
-		}
-		if (output_file != NULL) {
-			if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
-				printf("[ERROR] Open output file: %s\n", output_file);
-			}
-			dup2(fd_file, STDOUT_FILENO);
-		}
+        // Execute command with '<' and/or '>'
+        if (input_file != NULL) {
+            if ((fd_file = open(input_file, O_RDONLY)) < 0) {
+                printf("[ERROR] Open input file: %s\n", input_file);
+            }
+            dup2(fd_file, STDIN_FILENO);
+        }
+        if (output_file != NULL) {
+            if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
+                printf("[ERROR] Open output file: %s\n", output_file);
+            }
+            dup2(fd_file, STDOUT_FILENO);
+        }
 
-		execvp(cmd[0], cmd);
+        execvp(cmd[0], cmd);
         return;
-	}
+    }
 
-	// [PARENT PROCESS] pid = child pid
+    // [PARENT PROCESS] pid = child pid
     close(fd[1]);
 
     if (bg == 0) {
-	    int status;
+        int status;
         while (wait(&status) != pid);
     }
     else {
         struct jobs_list *end = get_next();
         end->pid = pid;
         end->cmd = malloc(strlen(cmd[0]) * sizeof(char));
-		gettimeofday(&begin, NULL);
-		end->sec = begin.tv_sec;
+        gettimeofday(&begin, NULL);
+        end->sec = begin.tv_sec;
         strcpy(end->cmd, cmd[0]);
     }
 }
 
 // 7.3 Temps de calcul d'un processus (signal handler)
 void handler(int sig, siginfo_t *info, void *context) {
-	struct timeval end;
-	int sec = getSec(info->si_pid);
+    struct timeval end;
+    int sec = getSec(info->si_pid);
 
-	if (sec != -1) {
-		gettimeofday(&end, NULL);
-		printf("Execution time [%d]: %ld seconds\n", info->si_pid, end.tv_sec - sec);
-	}
+    if (sec != -1) {
+        gettimeofday(&end, NULL);
+        printf("Execution time [%d]: %ld seconds\n", info->si_pid, end.tv_sec - sec);
+    }
 }
 
 void jobs() {
-	struct jobs_list *current = list;
+    struct jobs_list *current = list;
 
-	while(current != NULL) {
+    while(current != NULL) {
         int status;
 
         /* If the process is running, waitpid returns 0, else the pid */
         if(!(bool) waitpid(current->pid, &status, WNOHANG)) {
-		    printf("%d : %s\n", current->pid, current->cmd);
+                printf("%d : %s\n", current->pid, current->cmd);
         }
 
-		current = current->next;
-	}
+        current = current->next;
+    }
 }
 
 int main() {
@@ -218,100 +216,100 @@ int main() {
         scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
 #endif
 
-	// 7.3 Temps de calcul d'un processus
-	struct sigaction sa;
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | SA_NOCLDSTOP | SA_RESTART;
-	sigemptyset(&sa.sa_mask);
-	sigaction(SIGCHLD, &sa, NULL);
+    // 7.3 Temps de calcul d'un processus
+    struct sigaction sa;
+    sa.sa_sigaction = handler;
+    sa.sa_flags = SA_SIGINFO | SA_NOCLDSTOP | SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGCHLD, &sa, NULL);
 
-	// 7.6 Limitation du temps de calcul (Initialisation)
-	limit_time_process = malloc(sizeof(struct rlimit));
-	getrlimit(RLIMIT_CPU, limit_time_process);
+    // 7.6 Limitation du temps de calcul (Initialisation)
+    limit_time_process = malloc(sizeof(struct rlimit));
+    getrlimit(RLIMIT_CPU, limit_time_process);
 
-	while (1) {
-		struct cmdline *l;
-		char *line=0;
-		int i;//, j;
-		char *prompt = "ensishell>";
+    while (1) {
+        struct cmdline *l;
+        char *line=0;
+        int i;//, j;
+        char *prompt = "ensishell>";
 
-		/* Readline use some internal memory structure that
-		   can not be cleaned at the end of the program. Thus
-		   one memory leak per command seems unavoidable yet */
-		line = readline(prompt);
+        /* Readline use some internal memory structure that
+           can not be cleaned at the end of the program. Thus
+           one memory leak per command seems unavoidable yet */
+        line = readline(prompt);
 
-		if (line == 0 || ! strncmp(line,"exit", 4)) {
-			terminate(line);
-		}
+        if (line == 0 || ! strncmp(line,"exit", 4)) {
+            terminate(line);
+        }
 
 #if USE_GNU_READLINE == 1
-		add_history(line);
+        add_history(line);
 #endif
 
 
 #if USE_GUILE == 1
-		/* The line is a scheme command */
-		if (line[0] == '(') {
-			char catchligne[strlen(line) + 256];
-			sprintf(catchligne, "(catch #t (lambda () %s) (lambda (key . parameters) (display \"mauvaise expression/bug en scheme\n\")))", line);
-			scm_eval_string(scm_from_locale_string(catchligne));
-			free(line);
+        /* The line is a scheme command */
+        if (line[0] == '(') {
+            char catchligne[strlen(line) + 256];
+            sprintf(catchligne, "(catch #t (lambda () %s) (lambda (key . parameters) (display \"mauvaise expression/bug en scheme\n\")))", line);
+            scm_eval_string(scm_from_locale_string(catchligne));
+            free(line);
                         continue;
                 }
 #endif
 
-		/* parsecmd free line and set it up to 0 */
-		l = parsecmd(&line);
+        /* parsecmd free line and set it up to 0 */
+        l = parsecmd(&line);
 
-		/* If input stream closed, normal termination */
-		if (!l) {
-			terminate(0);
-		}
+        /* If input stream closed, normal termination */
+        if (!l) {
+            terminate(0);
+        }
 
-		if (l->err) {
-			/* Syntax error, read another command */
-			printf("error: %s\n", l->err);
-			continue;
-		}
+        if (l->err) {
+            /* Syntax error, read another command */
+            printf("error: %s\n", l->err);
+            continue;
+        }
 
-		// if (l->in) printf("in: %s\n", l->in);
-		// if (l->out) printf("out: %s\n", l->out);
-		// if (l->bg) printf("background (&)\n");
+        // if (l->in) printf("in: %s\n", l->in);
+        // if (l->out) printf("out: %s\n", l->out);
+        // if (l->bg) printf("background (&)\n");
 
-		// Pipe management
+        // Pipe management
         pipe(fd);
 
         /* Display each command of the pipe */
-		for (i=0; l->seq[i]!=0; i++) {
-			char **cmd = l->seq[i];
+        for (i=0; l->seq[i]!=0; i++) {
+            char **cmd = l->seq[i];
 
-			// printf("seq[%d]: ", i);
+            // printf("seq[%d]: ", i);
             //     for (j=0; cmd[j]!=0; j++) {
             //             printf("'%s' ", cmd[j]);
             //     }
-			// printf("\n");
+            // printf("\n");
 
-			if (strcmp(cmd[0], "jobs") == 0) {
-				jobs();
-			}
-			else if (strcmp(cmd[0], "ulimit") == 0) {
-				if (cmd[1] != 0) {
-					limit_time_process->rlim_cur = atoi(cmd[1]);
-					limit_time_process->rlim_max = limit_time_process->rlim_cur + 5;
-				}
-				else {
-					printf("[ERROR] Please enter a number after 'ulimit' (Example: ulimit 10)\n");
-				}
-			} else {
-				execute(
+            if (strcmp(cmd[0], "jobs") == 0) {
+                jobs();
+            }
+            else if (strcmp(cmd[0], "ulimit") == 0) {
+                if (cmd[1] != 0) {
+                    limit_time_process->rlim_cur = atoi(cmd[1]);
+                    limit_time_process->rlim_max = limit_time_process->rlim_cur + 5;
+                }
+                else {
+                    printf("[ERROR] Please enter a number after 'ulimit' (Example: ulimit 10)\n");
+                }
+            } else {
+                execute(
                     cmd,
                     l->bg,
                     i > 0,
                     l->seq[i+1] != 0,
-					l->in,
-					l->out
+                    l->in,
+                    l->out
                 );
-			}
-		}
-	}
+            }
+        }
+    }
 }
