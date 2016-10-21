@@ -167,6 +167,10 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
     // [PARENT PROCESS] pid = child pid
     close(fd[1]);
 
+    if(out_pipe) {
+        return;
+    }
+
     if (!bg) {
         int status;
         while (wait(&status) != pid);
