@@ -20,7 +20,7 @@
 #include "readcmd.h"
 
 #ifndef VARIANTE
-#error "Variante non défini !!"
+#error "Variante non définie !!"
 #endif
 
 // Global variables
@@ -69,7 +69,7 @@ int question6_executer(char *line)
 
 SCM executer_wrapper(SCM x)
 {
-        return scm_from_int(question6_executer(scm_to_locale_stringn(x, 0)));
+    return scm_from_int(question6_executer(scm_to_locale_stringn(x, 0)));
 }
 #endif
 
@@ -118,7 +118,7 @@ int getSec(int pid) {
 }
 
 void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
-             char* input_file, char* output_file) {
+             char *input_file, char *output_file) {
     /* The fork() function returns an integer which can be either '-1' or '0'
      * for the a child process
      */
@@ -133,7 +133,6 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
     }
     // [CHILD PROCESS] pid == 0
     else if (pid == 0) {
-
         // 7.6 Limitation du temps de calcul
         setrlimit(RLIMIT_CPU, limit_time_process);
 
@@ -141,40 +140,48 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
         if(in_pipe) {
             dup2(fd[0], STDIN_FILENO);
         }
-        if (out_pipe) {
+        if(out_pipe) {
             dup2(fd[1], STDOUT_FILENO);
         }
 
-        //Execute command with '<' and/or '>' (OUT OF PIPE)
+        // Execute command with '<' and/or '>' (OUT OF PIPE)
         if (input_file != NULL && !out_pipe && !in_pipe) {
             if ((fd_file = open(input_file, O_RDONLY)) < 0) {
                 printf("[ERROR] Open input file: %s\n", input_file);
+                return;
             }
+
             dup2(fd_file, STDIN_FILENO);
-						close(fd_file);
+            close(fd_file);
         }
         if (output_file != NULL && !out_pipe && !in_pipe) {
             if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
                 printf("[ERROR] Open output file: %s\n", output_file);
+                return;
             }
+
             dup2(fd_file, STDOUT_FILENO);
-						close(fd_file);
+            close(fd_file);
         }
 
-				//Execute command with '<' and/or '>' (IN OF PIPE)
+        // Execute command with '<' and/or '>' (IN OF PIPE)
         if (input_file != NULL && out_pipe) {
             if ((fd_file = open(input_file, O_RDONLY)) < 0) {
                 printf("[ERROR] Open input file: %s\n", input_file);
+                return;
             }
+
             dup2(fd_file, STDIN_FILENO);
-						close(fd_file);
+            close(fd_file);
         }
         if (output_file != NULL && in_pipe) {
             if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
                 printf("[ERROR] Open output file: %s\n", output_file);
+                return;
             }
+
             dup2(fd_file, STDOUT_FILENO);
-						close(fd_file);
+            close(fd_file);
         }
 
         execvp(cmd[0], cmd);
@@ -282,8 +289,8 @@ int main() {
             sprintf(catchligne, "(catch #t (lambda () %s) (lambda (key . parameters) (display \"mauvaise expression/bug en scheme\n\")))", line);
             scm_eval_string(scm_from_locale_string(catchligne));
             free(line);
-                        continue;
-                }
+            continue;
+        }
 #endif
 
         /* parsecmd free line and set it up to 0 */
