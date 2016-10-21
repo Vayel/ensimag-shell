@@ -136,7 +136,6 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
 
         // 7.6 Limitation du temps de calcul
         setrlimit(RLIMIT_CPU, limit_time_process);
-        getrlimit(RLIMIT_CPU, limit_time_process);
 
         // Pipe management
         if(in_pipe) {
@@ -146,18 +145,36 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
             dup2(fd[1], STDOUT_FILENO);
         }
 
-        // Execute command with '<' and/or '>'
-        if (input_file != NULL) {
+        //Execute command with '<' and/or '>' (OUT OF PIPE)
+        if (input_file != NULL && !out_pipe && !in_pipe) {
             if ((fd_file = open(input_file, O_RDONLY)) < 0) {
                 printf("[ERROR] Open input file: %s\n", input_file);
             }
             dup2(fd_file, STDIN_FILENO);
+						close(fd_file);
         }
-        if (output_file != NULL) {
+        if (output_file != NULL && !out_pipe && !in_pipe) {
             if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
                 printf("[ERROR] Open output file: %s\n", output_file);
             }
             dup2(fd_file, STDOUT_FILENO);
+						close(fd_file);
+        }
+
+				//Execute command with '<' and/or '>' (IN OF PIPE)
+        if (input_file != NULL && out_pipe) {
+            if ((fd_file = open(input_file, O_RDONLY)) < 0) {
+                printf("[ERROR] Open input file: %s\n", input_file);
+            }
+            dup2(fd_file, STDIN_FILENO);
+						close(fd_file);
+        }
+        if (output_file != NULL && in_pipe) {
+            if ((fd_file = open(output_file, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
+                printf("[ERROR] Open output file: %s\n", output_file);
+            }
+            dup2(fd_file, STDOUT_FILENO);
+						close(fd_file);
         }
 
         execvp(cmd[0], cmd);
@@ -170,7 +187,6 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
     if(out_pipe) {
         return;
     }
-
     if (!bg) {
         int status;
         while (wait(&status) != pid);
