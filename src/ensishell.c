@@ -167,7 +167,7 @@ void execute(char **cmd, int bg, bool in_pipe, bool out_pipe,
     // [PARENT PROCESS] pid = child pid
     close(fd[1]);
 
-    if (bg == 0) {
+    if (!bg) {
         int status;
         while (wait(&status) != pid);
     }
@@ -188,32 +188,40 @@ void handler(int sig, siginfo_t *info, void *context) {
 
     if (sec != -1) {
         gettimeofday(&end, NULL);
-        printf("Execution time [%d]: %ld seconds\n", info->si_pid, end.tv_sec - sec);
+        printf("\nExecution time [%d]: %ld seconds\n", info->si_pid, end.tv_sec - sec);
     }
 }
 
 void jobs() {
     struct jobs_list *current = list;
+    struct jobs_list *prev = NULL;
 
     while(current != NULL) {
         int status;
 
-        /* If the process is running, waitpid returns 0, else the pid */
+        /* If the process is running */
         if(!(bool) waitpid(current->pid, &status, WNOHANG)) {
-                printf("%d : %s\n", current->pid, current->cmd);
+            printf("%d : %s\n", current->pid, current->cmd);
+        } else {
+            if(prev == NULL) {
+                list = current->next;
+            } else {
+                prev->next = current->next;
+            }
         }
 
+        prev = current;
         current = current->next;
     }
 }
 
 int main() {
-        printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
+    printf("Variante %d: %s\n", VARIANTE, VARIANTE_STRING);
 
 #if USE_GUILE == 1
-        scm_init_guile();
-        /* register "executer" function in scheme */
-        scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
+    scm_init_guile();
+    /* register "executer" function in scheme */
+    scm_c_define_gsubr("executer", 1, 0, 0, executer_wrapper);
 #endif
 
     // 7.3 Temps de calcul d'un processus
